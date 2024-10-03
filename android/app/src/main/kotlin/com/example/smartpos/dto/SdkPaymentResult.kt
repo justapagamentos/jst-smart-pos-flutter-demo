@@ -1,0 +1,30 @@
+package com.example.smartpos.dto
+
+data class SdkPaymentResult(
+    val operation: String = "Payment",
+    val isApproved: Boolean,
+    val isCanceled: Boolean,
+    val aid: String?,
+    val amount: Long?,
+    val acquirer: String?,
+    val authorizationCode: String?,
+    val authorizationResponseCode: String?,
+    val brand: String?,
+    val cancelDateTime: String?,
+    val captureDateTime: String?,
+    val cardNumber: String?,
+    val cardholderName: String?,
+    val cardholderReceipt: List<String>?,
+    val chargeStatus: String?,
+    val creationDateTime: String?,
+    val currency: Int?,
+    val installmentNumber: Int?,
+    val installmentType: String?,
+    val merchantChargeId: String?,
+    val merchantReceipt: List<String>?,
+    val nsu: String?,
+    val origin: String?,
+    val paymentType: String?,
+    val transactionId: String?,
+    val errors: List<SdkError>? = emptyList()
+)
