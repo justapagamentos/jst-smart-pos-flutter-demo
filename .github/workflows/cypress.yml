@@ -1,0 +1,32 @@
+#name: End-to-end tests (Stag environment)
+#on: [pull_request]
+#jobs:
+#  cypress-run:
+#    runs-on: ubuntu-16.04
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v1
+#
+#      - name: Use Node.js 10.17
+#        uses: actions/setup-node@v1
+#        with:
+#          node-version: 10.17
+#
+#      - name: Install dependencies
+#        run: npm install
+#
+#      - name: Build with prod environment
+#        run: npm run build:prod
+#
+#      - name: Run e2e Tests with Cypress
+#        run: npm run e2e -- --configuration=staging
+# - name: install and cache dependencies
+#   uses: cypress-io/github-action@v1
+#   with:
+#     runTests: false
+# - name: run E2E tests
+#   uses: cypress-io/github-action@v1
+#   with:
+#     install: false
+#     build: npm run e2e
+#     wait-on: 'http://localhost:4200'
