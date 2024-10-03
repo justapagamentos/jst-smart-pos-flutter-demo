@@ -5,3 +5,6 @@
 # Xcode-related
 **/dgph
 **/xcuserdata/
+
+Generated.xcconfig
+flutter_export_environment.sh
