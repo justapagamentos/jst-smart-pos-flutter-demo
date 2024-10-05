@@ -1,5 +1,7 @@
 package com.example.smartpos
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Log
 import br.com.aditum.IAditumSdkService
@@ -8,6 +10,7 @@ import br.com.aditum.data.v2.enums.Acquirer
 import br.com.aditum.data.v2.enums.InstallmentType
 import br.com.aditum.data.v2.enums.PayOperationType
 import br.com.aditum.data.v2.enums.PaymentType
+import br.com.aditum.data.v2.enums.PrintStatus
 import br.com.aditum.data.v2.enums.TransactionStatus
 import br.com.aditum.data.v2.model.PinpadMessages
 import br.com.aditum.data.v2.model.init.InitRequest
@@ -16,7 +19,9 @@ import br.com.aditum.data.v2.model.init.InitResponseCallback
 import br.com.aditum.data.v2.model.payment.PaymentRequest
 import br.com.aditum.data.v2.model.payment.PaymentResponse
 import br.com.aditum.data.v2.model.payment.PaymentResponseCallback
+import br.com.aditum.device.callbacks.IPrintStatusCallback
 import com.example.smartpos.dto.SdkPaymentResult
+import com.example.smartpos.dto.SdkPrintResult
 import com.example.smartpos.dto.SdkTerminalData
 import com.example.smartpos.dto.SdkTerminalInit
 import com.example.smartpos.dto.SdkTerminalNotification
@@ -26,6 +31,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 import kotlin.concurrent.thread
 
@@ -78,6 +84,7 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "init" -> init(call, result)
                     "pay" -> pay(call, result)
+                    "print" -> print(call, result)
                     else -> result.notImplemented()
                 }
             }
@@ -212,6 +219,49 @@ class MainActivity : FlutterActivity() {
         Log.d(TAG, "pay / ended")
     }
 
+    // Realiza a impressão da imagem informada.
+    private fun print(
+        call: MethodCall,
+        result: MethodChannel.Result
+    ) {
+        Log.d(TAG, "print / started")
+        val imageByteArray: ByteArray = call.argument("imageByteArray") ?: ByteArray(0)
+        val bitmap = getBitmapFromByteArray(imageByteArray)
+        val app = app()
+        app.communicationService?.let {
+            thread {
+                it.deviceSdk.printerSdk.print(bitmap, mPrintStatusCallback)
+            }
+        }
+        result.success("Impressão iniciada de forma assíncrona.")
+        Log.d(TAG, "print / ended")
+    }
+
+    // Método para converter um ByteArray em um Bitmap.
+    private fun getBitmapFromByteArray(imageBytes: ByteArray): Bitmap? {
+        return if (imageBytes.isNotEmpty()) {
+            BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        } else {
+            getDefaultImageToPrint()
+        }
+    }
+
+    // Método para obter uma imagem padrão para impressão.
+    private fun getDefaultImageToPrint(): Bitmap {
+        // Get image from drawable folder.
+        val drawable = R.drawable.plugjusta
+        // Convert drawable to bitmap.
+        return BitmapFactory.decodeResource(resources, drawable)
+    }
+
+    // Método para converter um Bitmap em um ByteArray.
+    private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
+        val outputStream = ByteArrayOutputStream()
+        // Compressão do bitmap para o formato desejado (PNG, JPEG, etc.)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        return outputStream.toByteArray()
+    }
+
     // Método para converter o tipo de operação informado para o tipo de operação do SDK.
     private fun parseOperationType(operationType: Int): PayOperationType {
         return when (operationType) {
@@ -342,6 +392,31 @@ class MainActivity : FlutterActivity() {
                             )
                         )
                     )
+                }
+            }
+        }
+    }
+
+    private val mPrintStatusCallback = object : IPrintStatusCallback.Stub() {
+        override fun finished(status: PrintStatus) {
+            Log.d(TAG, "Print result: $status")
+            when (status) {
+                PrintStatus.Ok -> {
+                    runOnUiThread {
+                        eventSink?.success(
+                            gson.toJson(
+                                SdkPrintResult(
+                                    status = status.name
+                                )
+                            )
+                        )
+                    }
+                }
+
+                else -> {
+                    runOnUiThread {
+                        eventSink?.error("JST-003", "Erro ao imprimir o comprovante.", status.name)
+                    }
                 }
             }
         }

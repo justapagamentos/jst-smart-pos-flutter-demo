@@ -61,6 +61,10 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: _initPayment,
               child: const Text('Iniciar Pagamento'),
             ),
+            ElevatedButton(
+              onPressed: _initPrint,
+              child: const Text('Imprimir exemplo'),
+            ),
           ],
         ),
       ),
@@ -96,6 +100,19 @@ class _MyHomePageState extends State<MyHomePage> {
         'paymentType': 2, // Credit
         'installmentType': 1, // Merchant
         'operationType': 1, // Authorization
+      });
+      print('Resultado: $result');
+    } on PlatformException catch (e) {
+      print("Falha: '${e.message}'.");
+    }
+  }
+
+  void _initPrint() async {
+    try {
+      final result = await platform.invokeMethod('print', {
+        // Vamos imprimir uma imagem padrão quando não enviamos uma.
+        // A imagem padrão é a logomarca do Plug Justa.
+        // 'imageByteArray': ByteData(0).buffer.asUint8List(),
       });
       print('Resultado: $result');
     } on PlatformException catch (e) {
