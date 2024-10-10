@@ -83,8 +83,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void _initSdk() async {
     try {
       final result = await platform.invokeMethod('init', {
-        'merchantActivationCode': '880776044',
-        'applicationToken': 'mk_Lfq9yMzRoYaHjowfxLvoyi',
+        'merchantActivationCode': '746613962',
+        'applicationToken': 'mk_hIRPWZ8IeUOmARXknh3ww',
       });
       print('Resultado: $result');
     } on PlatformException catch (e) {
