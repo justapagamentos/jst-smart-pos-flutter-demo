@@ -12,6 +12,7 @@ import br.com.aditum.data.v2.enums.PayOperationType
 import br.com.aditum.data.v2.enums.PaymentType
 import br.com.aditum.data.v2.enums.PrintStatus
 import br.com.aditum.data.v2.enums.TransactionStatus
+import br.com.aditum.data.v2.model.Charge
 import br.com.aditum.data.v2.model.PinpadMessages
 import br.com.aditum.data.v2.model.init.InitRequest
 import br.com.aditum.data.v2.model.init.InitResponse
@@ -19,6 +20,7 @@ import br.com.aditum.data.v2.model.init.InitResponseCallback
 import br.com.aditum.data.v2.model.payment.PaymentRequest
 import br.com.aditum.data.v2.model.payment.PaymentResponse
 import br.com.aditum.data.v2.model.payment.PaymentResponseCallback
+import br.com.aditum.data.v2.model.transactions.ConfirmTransactionCallback
 import br.com.aditum.device.callbacks.IPrintStatusCallback
 import com.example.smartpos.dto.SdkPaymentResult
 import com.example.smartpos.dto.SdkPrintResult
@@ -144,7 +146,7 @@ class MainActivity : FlutterActivity() {
 
                 // Note que, como esse é um cenário alternativo, você precisará implementar alguma
                 // lógica para continuar o processo de onde parou. No exemplo abaixo estamos apenas
-                // chamando o método init() novamente, mas isso pode ficar parado em loop infinito.
+                // chamando a função init() novamente, mas isso pode ficar parado em loop infinito.
                 init(call, result, true)
             }
         }
@@ -237,7 +239,76 @@ class MainActivity : FlutterActivity() {
         Log.d(TAG, "print / ended")
     }
 
-    // Método para converter um ByteArray em um Bitmap.
+    // Função para confirmar o pagamento após sua autorização.
+    private fun confirmPayment(charge: Charge) {
+        Log.d(TAG, "confirmPayment / started")
+        val app = app()
+        app.communicationService?.let {
+            thread {
+                it.confirmTransaction(
+                    charge.nsu,
+                    object : ConfirmTransactionCallback.Stub() {
+
+                        override fun onResponse(confirmed: Boolean) {
+                            Log.d(TAG, "confirmPayment / confirmed: $confirmed")
+
+                            // Pagamento não foi confirmado junto à adquirente.
+                            if (!confirmed) {
+                                Log.e(
+                                    TAG,
+                                    "confirmPayment / Payment ${charge.merchantChargeId} not confirmed."
+                                )
+                                eventSink?.error(
+                                    "JST-010",
+                                    "Pagamento não confirmado.",
+                                    charge.merchantChargeId
+                                )
+                                return
+                            }
+
+                            runOnUiThread {
+                                // Podemos considerar que o processo completo de autorização e
+                                // captura foi concluído e o pagamento foi efetuado com sucesso.
+                                eventSink?.success(
+                                    gson.toJson(
+                                        SdkPaymentResult(
+                                            isApproved = charge.isApproved,
+                                            isCanceled = charge.isCanceled,
+                                            aid = charge.aid,
+                                            amount = charge.amount,
+                                            acquirer = charge.acquirer.name,
+                                            authorizationCode = charge.authorizationCode,
+                                            authorizationResponseCode = charge.authorizationResponseCode,
+                                            brand = charge.brand.name,
+                                            cancelDateTime = charge.cancelationDateTime,
+                                            captureDateTime = charge.captureDateTime,
+                                            cardNumber = charge.cardNumber,
+                                            cardholderName = charge.cardholderName,
+                                            cardholderReceipt = charge.cardholderReceipt,
+                                            chargeStatus = charge.chargeStatus?.name,
+                                            creationDateTime = charge.creationDateTime,
+                                            currency = charge.currency,
+                                            installmentNumber = charge.installmentNumber,
+                                            installmentType = charge.installmentType.name,
+                                            merchantChargeId = charge.merchantChargeId,
+                                            merchantReceipt = charge.merchantReceipt,
+                                            nsu = charge.nsu,
+                                            origin = charge.origin,
+                                            paymentType = charge.paymentType.name,
+                                            transactionId = charge.transactionId,
+                                        )
+                                    )
+                                )
+                            }
+                        }
+
+                    })
+            }
+        }
+        Log.d(TAG, "confirmPayment / ended")
+    }
+
+    // Função para converter um ByteArray em um Bitmap.
     private fun getBitmapFromByteArray(imageBytes: ByteArray): Bitmap? {
         return if (imageBytes.isNotEmpty()) {
             BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
@@ -246,7 +317,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // Método para obter uma imagem padrão para impressão.
+    // Função para obter uma imagem padrão para impressão.
     private fun getDefaultImageToPrint(): Bitmap {
         // Get image from drawable folder.
         val drawable = R.drawable.plugjusta
@@ -254,7 +325,7 @@ class MainActivity : FlutterActivity() {
         return BitmapFactory.decodeResource(resources, drawable)
     }
 
-    // Método para converter um Bitmap em um ByteArray.
+    // Função para converter um Bitmap em um ByteArray.
     private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
         val outputStream = ByteArrayOutputStream()
         // Compressão do bitmap para o formato desejado (PNG, JPEG, etc.)
@@ -262,7 +333,7 @@ class MainActivity : FlutterActivity() {
         return outputStream.toByteArray()
     }
 
-    // Método para converter o tipo de operação informado para o tipo de operação do SDK.
+    // Função para converter o tipo de operação informado para o tipo de operação do SDK.
     private fun parseOperationType(operationType: Int): PayOperationType {
         return when (operationType) {
             1 -> PayOperationType.Authorization
@@ -273,7 +344,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // Método para converter o tipo de parcelamento informado para o tipo de parcelamento do SDK.
+    // Função para converter o tipo de parcelamento informado para o tipo de parcelamento do SDK.
     private fun parseInstallmentType(installmentType: Int): InstallmentType {
         return when (installmentType) {
             1 -> InstallmentType.None
@@ -283,7 +354,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // Método para converter o tipo de pagamento informado para o tipo de pagamento do SDK.
+    // Função para converter o tipo de pagamento informado para o tipo de pagamento do SDK.
     private fun parsePaymentType(paymentType: Int): PaymentType {
         return when (paymentType) {
             1 -> PaymentType.Debit
@@ -362,41 +433,13 @@ class MainActivity : FlutterActivity() {
             Log.d(TAG, "onResponse - paymentResponse: $paymentResponse")
             runOnUiThread {
                 paymentResponse?.charge?.let {
-                    eventSink?.success(
-                        gson.toJson(
-                            SdkPaymentResult(
-                                isApproved = it.isApproved,
-                                isCanceled = it.isCanceled,
-                                aid = it.aid,
-                                amount = it.amount,
-                                acquirer = it.acquirer.name,
-                                authorizationCode = it.authorizationCode,
-                                authorizationResponseCode = it.authorizationResponseCode,
-                                brand = it.brand.name,
-                                cancelDateTime = it.cancelationDateTime,
-                                captureDateTime = it.captureDateTime,
-                                cardNumber = it.cardNumber,
-                                cardholderName = it.cardholderName,
-                                cardholderReceipt = it.cardholderReceipt,
-                                chargeStatus = it.chargeStatus?.name,
-                                creationDateTime = it.creationDateTime,
-                                currency = it.currency,
-                                installmentNumber = it.installmentNumber,
-                                installmentType = it.installmentType.name,
-                                merchantChargeId = it.merchantChargeId,
-                                merchantReceipt = it.merchantReceipt,
-                                nsu = it.nsu,
-                                origin = it.origin,
-                                paymentType = it.paymentType.name,
-                                transactionId = it.transactionId,
-                            )
-                        )
-                    )
+                    confirmPayment(it)
                 }
             }
         }
     }
 
+    // Callback para resposta da impressão.
     private val mPrintStatusCallback = object : IPrintStatusCallback.Stub() {
         override fun finished(status: PrintStatus) {
             Log.d(TAG, "Print result: $status")
